@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StreamDeck</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+
+  <!-- Header with Navigation Tabs -->
+  <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur px-4 md:px-8 py-3 flex flex-wrap justify-between items-center gap-4 sticky top-0 z-30">
+    <div class="flex items-center gap-6">
+      <!-- Brand / Logo (Takes to Player) -->
+      <button onclick="switchTab('player')" class="flex items-center gap-2 group cursor-pointer focus:outline-none">
+        <i class="fa-solid fa-play-circle text-indigo-500 text-2xl group-hover:text-indigo-400 transition"></i>
+        <h1 class="text-lg font-bold tracking-tight">StreamDeck</h1>
+      </button>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
+        <button id="nav-player" onclick="switchTab('player')" class="px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium transition cursor-pointer">
+          <i class="fa-solid fa-film mr-1.5"></i> Player
+        </button>
+        <button id="nav-discover" onclick="switchTab('discover')" class="px-3 py-1.5 rounded-md text-slate-400 hover:text-white font-medium transition cursor-pointer">
+          <i class="fa-solid fa-compass mr-1.5"></i> Discover
+        </button>
+        <button id="nav-history" onclick="switchTab('history')" class="px-3 py-1.5 rounded-md text-slate-400 hover:text-white font-medium transition cursor-pointer">
+          <i class="fa-solid fa-clock-rotate-left mr-1.5"></i> Recently Watched
+        </button>
+      </nav>
+    </div>
+
+    <!-- Metadata & Settings -->
+    <div class="flex items-center gap-3">
+      <span id="show-metadata" class="text-xs text-slate-400 font-mono hidden md:inline"></span>
+      <button type="button" onclick="toggleModal('settings-modal')" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 transition cursor-pointer">
+        <i class="fa-solid fa-gear mr-1"></i> Settings
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-6xl w-full mx-auto p-4 md:p-6 flex flex-col relative z-10">
+
+    <!-- ================= TAB 1: PLAYER ================= -->
+    <section id="tab-content-player" class="flex flex-col gap-4">
+      <!-- Command Bar -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+        
+        <div class="flex flex-wrap items-center gap-2.5">
+          <!-- Mode Switcher -->
+          <div class="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800">
+            <button id="type-tv" type="button" onclick="setType('tv')" class="px-3 py-1 text-xs font-semibold rounded-md bg-indigo-600 text-white transition cursor-pointer">TV</button>
+            <button id="type-movie" type="button" onclick="setType('movie')" class="px-3 py-1 text-xs font-semibold rounded-md text-slate-400 hover:text-white transition cursor-pointer">Movie</button>
+          </div>
+
+          <!-- IMDb Input -->
+          <input id="input-id" type="text" placeholder="IMDb ID (e.g. tt0944947)" 
+                 class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs w-36 md:w-44 focus:outline-none focus:border-indigo-500">
+
+          <!-- TV S/E Inputs -->
+          <div id="tv-controls" class="flex items-center gap-1.5">
+            <div class="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1">
+              <span class="text-[11px] text-slate-400 font-bold">S</span>
+              <input id="input-season" type="number" min="1" value="1" 
+                     onchange="autoLoadIfActive()"
+                     class="bg-transparent text-xs w-9 text-center focus:outline-none">
+            </div>
+            <div class="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1">
+              <span class="text-[11px] text-slate-400 font-bold">E</span>
+              <input id="input-episode" type="number" min="1" value="1" 
+                     onchange="autoLoadIfActive()"
+                     class="bg-transparent text-xs w-9 text-center focus:outline-none">
+            </div>
+          </div>
+
+          <!-- Play Button -->
+          <button type="button" onclick="loadPlayer()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-3.5 py-1 rounded-lg text-xs transition cursor-pointer shadow-sm">
+            <i class="fa-solid fa-play mr-1"></i> Play
+          </button>
+        </div>
+
+        <!-- Trakt Watched Button -->
+        <button type="button" onclick="markAsWatchedTrakt()" class="flex items-center gap-1.5 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30 px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer">
+          <i class="fa-solid fa-check"></i> <span>Watched</span>
+        </button>
+      </div>
+
+      <!-- Video Embed Frame -->
+      <div class="relative w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
+        <iframe id="video-frame" src="" class="w-full h-full border-0" allowfullscreen></iframe>
+        <div id="placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 text-slate-400">
+          <i class="fa-solid fa-film text-4xl mb-3 text-slate-600"></i>
+          <p class="text-sm">Enter an IMDb ID or choose a title from Discover / Recently Watched</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 2: DISCOVER ================= -->
+    <section id="tab-content-discover" class="hidden flex-col gap-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+          <div>
+            <h2 class="text-base font-bold text-slate-200">Discover Titles</h2>
+            <p class="text-xs text-slate-400">Explore trending and popular movies and shows powered by Trakt</p>
+          </div>
+
+          <!-- Filters -->
+          <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
+            <button onclick="fetchDiscover('shows', 'trending')" id="tab-shows-trending" class="px-2.5 py-1 rounded-md bg-indigo-600 text-white font-medium">Trending Shows</button>
+            <button onclick="fetchDiscover('movies', 'trending')" id="tab-movies-trending" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">Trending Movies</button>
+            <button onclick="fetchDiscover('shows', 'popular')" id="tab-shows-popular" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">Popular Shows</button>
+            <button onclick="fetchDiscover('movies', 'popular')" id="tab-movies-popular" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">Popular Movies</button>
+          </div>
+        </div>
+
+        <!-- Grid -->
+        <div id="discover-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5 pt-1"></div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 3: RECENTLY WATCHED ================= -->
+    <section id="tab-content-history" class="hidden flex-col gap-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
+        <div class="border-b border-slate-800 pb-3">
+          <h2 class="text-base font-bold text-slate-200">Recently Watched</h2>
+          <p class="text-xs text-slate-400">Your last 5 sessions with automatically saved progress timestamps</p>
+        </div>
+
+        <div id="history-full-list" class="space-y-2.5">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" style="display: none;" class="fixed inset-0 bg-black/60 backdrop-blur-sm items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <h3 class="text-base font-bold">Player & Trakt Settings</h3>
+      
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Base Embed Provider URL</label>
+        <input id="setting-provider" type="text" value="https://vidsrc.to/embed" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200">
+      </div>
+
+      <div class="border-t border-slate-800 pt-3">
+        <label class="block text-xs text-slate-400 mb-1">Trakt Client ID (Enables Trakt Discovery)</label>
+        <input id="setting-trakt-id" type="text" placeholder="Your Trakt App Client ID" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200">
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Trakt Access Token (Optional 1-click sync)</label>
+        <input id="setting-trakt-token" type="password" placeholder="OAuth Access Token" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200">
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" onclick="toggleModal('settings-modal')" class="px-3 py-1.5 text-xs bg-slate-800 rounded-lg cursor-pointer">Close</button>
+        <button type="button" onclick="saveSettings()" class="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg cursor-pointer">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_PROVIDER = 'https://vidsrc.to/embed';
+
+    let currentType = 'tv';
+    let isPlaying = false;
+    let currentTitle = '';
+    let currentProgressSeconds = 0;
+
+    const config = {
+      provider: localStorage.getItem('provider_url') || DEFAULT_PROVIDER,
+      traktClientId: localStorage.getItem('trakt_client_id') || '',
+      traktToken: localStorage.getItem('trakt_token') || ''
+    };
+
+    document.getElementById('setting-provider').value = config.provider;
+    document.getElementById('setting-trakt-id').value = config.traktClientId;
+    document.getElementById('setting-trakt-token').value = config.traktToken;
+
+    // --- TAB SWITCHER LOGIC ---
+    function switchTab(tabId) {
+      const tabs = ['player', 'discover', 'history'];
+      tabs.forEach(t => {
+        const content = document.getElementById(`tab-content-${t}`);
+        const navBtn = document.getElementById(`nav-${t}`);
+        if (t === tabId) {
+          content.classList.remove('hidden');
+          content.classList.add('flex');
+          navBtn.className = "px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium transition cursor-pointer";
+        } else {
+          content.classList.add('hidden');
+          content.classList.remove('flex');
+          navBtn.className = "px-3 py-1.5 rounded-md text-slate-400 hover:text-white font-medium transition cursor-pointer";
+        }
+      });
+
+      if (tabId === 'history') renderHistoryTab();
+      if (tabId === 'discover') fetchDiscover('shows', 'trending');
+    }
+
+    // Input Enter trigger
+    ['input-id', 'input-season', 'input-episode'].forEach(id => {
+      document.getElementById(id).addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') loadPlayer();
+      });
+    });
+
+    // --- HISTORY STORAGE ENGINE (5 ITEMS) ---
+    function getHistory() {
+      try {
+        return JSON.parse(localStorage.getItem('streamdeck_history') || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+    function saveHistory(list) {
+      localStorage.setItem('streamdeck_history', JSON.stringify(list.slice(0, 5)));
+      renderHistoryTab();
+    }
+
+    function recordCurrentWatch(id, season, episode, type, time = 0, title = '') {
+      let list = getHistory();
+      const existingIdx = list.findIndex(item => item.id === id);
+
+      const entry = {
+        id,
+        season: type === 'tv' ? season : null,
+        episode: type === 'tv' ? episode : null,
+        type,
+        time: Math.floor(time),
+        title: title || (existingIdx !== -1 ? list[existingIdx].title : id),
+        timestamp: Date.now()
+      };
+
+      if (existingIdx !== -1) list.splice(existingIdx, 1);
+      list.unshift(entry);
+      saveHistory(list);
+    }
+
+    function updateActiveProgressInHistory(seconds) {
+      currentProgressSeconds = Math.floor(seconds);
+      const id = document.getElementById('input-id').value.trim();
+      const season = parseInt(document.getElementById('input-season').value, 10);
+      const episode = parseInt(document.getElementById('input-episode').value, 10);
+      if (!id) return;
+      recordCurrentWatch(id, season, episode, currentType, currentProgressSeconds, currentTitle);
+    }
+
+    function formatSeconds(secs) {
+      const m = Math.floor(secs / 60);
+      const s = Math.floor(secs % 60);
+      return `${m}m ${s < 10 ? '0' : ''}${s}s`;
+    }
+
+    function renderHistoryTab() {
+      const container = document.getElementById('history-full-list');
+      const list = getHistory();
+
+      if (list.length === 0) {
+        container.innerHTML = `<div class="text-xs text-slate-500 text-center py-12">No watch history found. Start watching something from Discover or the Player!</div>`;
+        return;
+      }
+
+      container.innerHTML = list.map((item, index) => `
+        <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-indigo-500/50 transition">
+          <div class="flex items-center gap-3">
+            <span class="text-sm font-mono text-slate-600 font-bold">${index + 1}</span>
+            <div>
+              <div class="text-sm font-semibold text-slate-200">
+                ${item.title || item.id}
+                <span class="ml-2 text-[10px] px-1.5 py-0.5 rounded ${item.type === 'tv' ? 'bg-indigo-950 text-indigo-400 border border-indigo-800/40' : 'bg-emerald-950 text-emerald-400 border border-emerald-800/40'}">
+                  ${item.type === 'tv' ? `S${item.season} E${item.episode}` : 'Movie'}
+                </span>
+              </div>
+              <div class="text-xs text-slate-400 mt-1 flex items-center gap-3">
+                <span><i class="fa-regular fa-clock text-[10px] mr-1"></i>Position: ${formatSeconds(item.time || 0)}</span>
+                <span class="text-slate-600">•</span>
+                <span class="font-mono text-slate-500">${item.id}</span>
+              </div>
+            </div>
+          </div>
+          <button type="button" onclick="resumeFromItem('${item.id}', ${item.season}, ${item.episode}, '${item.type}', ${item.time || 0})" 
+                  class="px-3.5 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition cursor-pointer shadow">
+            Resume <i class="fa-solid fa-play ml-1 text-[10px]"></i>
+          </button>
+        </div>
+      `).join('');
+    }
+
+    function resumeFromItem(id, season, episode, type, time = 0) {
+      setType(type);
+      document.getElementById('input-id').value = id;
+      if (type === 'tv') {
+        document.getElementById('input-season').value = season || 1;
+        document.getElementById('input-episode').value = episode || 1;
+      }
+      currentProgressSeconds = time || 0;
+      switchTab('player');
+      loadPlayer(currentProgressSeconds);
+    }
+
+    // Embed postMessage listener for time updates
+    window.addEventListener('message', (event) => {
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (!data) return;
+        const seconds = data.seconds ?? data.currentTime ?? data.time ?? (data.event === 'timeupdate' ? data.data?.seconds : null);
+        if (typeof seconds === 'number' && !isNaN(seconds) && seconds > 0) {
+          updateActiveProgressInHistory(seconds);
+        }
+      } catch {}
+    });
+
+    // --- DISCOVERY LOGIC ---
+    async function fetchDiscover(mediaType, filter) {
+      const grid = document.getElementById('discover-grid');
+      
+      ['shows-trending', 'movies-trending', 'shows-popular', 'movies-popular'].forEach(id => {
+        const btn = document.getElementById(`tab-${id}`);
+        if (id === `${mediaType}-${filter}`) {
+          btn.className = "px-2.5 py-1 rounded-md bg-indigo-600 text-white font-medium";
+        } else {
+          btn.className = "px-2.5 py-1 rounded-md text-slate-400 hover:text-white";
+        }
+      });
+
+      if (!config.traktClientId) {
+        grid.innerHTML = `
+          <div class="col-span-full py-12 text-center bg-slate-950/60 rounded-xl border border-slate-800">
+            <p class="text-sm text-slate-300 font-medium mb-1">Trakt Client ID is required for live discovery.</p>
+            <p class="text-xs text-slate-500 mb-3">Add your free Trakt API Client ID in settings to populate live rankings.</p>
+            <button onclick="toggleModal('settings-modal')" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 rounded-lg transition cursor-pointer">Open Settings</button>
+          </div>`;
+        return;
+      }
+
+      grid.innerHTML = `<div class="col-span-full py-12 text-center text-xs text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading titles...</div>`;
+
+      try {
+        const res = await fetch(`https://api.trakt.tv/${mediaType}/${filter}?page=1&limit=15&extended=full`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'trakt-api-version': '2',
+            'trakt-api-key': config.traktClientId
+          }
+        });
+
+        if (!res.ok) throw new Error('Trakt fetch failed');
+        const data = await res.json();
+
+        grid.innerHTML = data.map(entry => {
+          const item = entry.movie || entry.show || entry;
+          const imdbId = item.ids?.imdb;
+          if (!imdbId) return '';
+
+          const title = item.title;
+          const year = item.year || '';
+          const rating = item.rating ? item.rating.toFixed(1) : 'N/A';
+          const type = mediaType === 'shows' ? 'tv' : 'movie';
+
+          return `
+            <div onclick="selectDiscoverItem('${imdbId}', '${type}', '${title.replace(/'/g, "\\'")}')" 
+                 class="group bg-slate-950 border border-slate-800 hover:border-indigo-500 rounded-xl p-3 flex flex-col justify-between cursor-pointer transition shadow hover:-translate-y-0.5">
+              <div>
+                <div class="flex items-center justify-between text-[11px] mb-1">
+                  <span class="text-slate-400">${year}</span>
+                  <span class="text-amber-400 font-bold"><i class="fa-solid fa-star text-[9px] mr-1"></i>${rating}</span>
+                </div>
+                <h4 class="text-xs font-semibold text-slate-200 line-clamp-2 group-hover:text-indigo-400 transition">${title}</h4>
+              </div>
+              <div class="mt-4 flex items-center justify-between">
+                <span class="text-[10px] uppercase font-mono text-slate-500">${type}</span>
+                <span class="text-[10px] bg-indigo-600/20 text-indigo-400 px-2 py-0.5 rounded border border-indigo-500/30">Stream</span>
+              </div>
+            </div>`;
+        }).join('');
+      } catch (err) {
+        grid.innerHTML = `<div class="col-span-full py-8 text-center text-xs text-red-400">Error loading discovery list. Check your Trakt Client ID.</div>`;
+      }
+    }
+
+    // Handles picking a show from Discover and restoring existing state (e.g. S2E1)
+    function selectDiscoverItem(imdbId, type, title) {
+      currentTitle = title;
+      const historyList = getHistory();
+      
+      // Look for pre-existing progress for this show/movie
+      const existing = historyList.find(item => item.id === imdbId && item.type === type);
+
+      if (existing) {
+        resumeFromItem(imdbId, existing.season, existing.episode, type, existing.time || 0);
+      } else {
+        // Brand new watch: start at S1E1 or Movie start
+        resumeFromItem(imdbId, 1, 1, type, 0);
+      }
+    }
+
+    // --- PLAYER & SETTINGS ---
+    function setType(type) {
+      currentType = type;
+      const tvBtn = document.getElementById('type-tv');
+      const movieBtn = document.getElementById('type-movie');
+      const tvControls = document.getElementById('tv-controls');
+
+      if (type === 'tv') {
+        tvBtn.className = "px-3 py-1 text-xs font-semibold rounded-md bg-indigo-600 text-white transition cursor-pointer";
+        movieBtn.className = "px-3 py-1 text-xs font-semibold rounded-md text-slate-400 hover:text-white transition cursor-pointer";
+        tvControls.style.display = 'flex';
+      } else {
+        movieBtn.className = "px-3 py-1 text-xs font-semibold rounded-md bg-indigo-600 text-white transition cursor-pointer";
+        tvBtn.className = "px-3 py-1 text-xs font-semibold rounded-md text-slate-400 hover:text-white transition cursor-pointer";
+        tvControls.style.display = 'none';
+      }
+    }
+
+    function autoLoadIfActive() {
+      if (isPlaying) {
+        currentProgressSeconds = 0;
+        loadPlayer(0);
+      }
+    }
+
+    async function fetchShowStructure(imdbId) {
+      try {
+        const lookup = await fetch(`https://api.tvmaze.com/lookup/shows?imdb=${imdbId}`);
+        if (!lookup.ok) return;
+        const show = await lookup.json();
+        
+        currentTitle = show.name;
+        const epsRes = await fetch(`https://api.tvmaze.com/shows/${show.id}/episodes`);
+        if (!epsRes.ok) return;
+        const eps = await epsRes.json();
+
+        const metaSpan = document.getElementById('show-metadata');
+        metaSpan.innerText = `${show.name} (${eps.length} eps)`;
+        metaSpan.classList.remove('hidden');
+
+        updateActiveProgressInHistory(currentProgressSeconds);
+      } catch (err) {
+        console.warn('Could not query TVMaze metadata:', err);
+      }
+    }
+
+    function loadPlayer(startSeconds = null) {
+      const id = document.getElementById('input-id').value.trim();
+      const season = parseInt(document.getElementById('input-season').value, 10);
+      const episode = parseInt(document.getElementById('input-episode').value, 10);
+      const frame = document.getElementById('video-frame');
+      const placeholder = document.getElementById('placeholder');
+
+      if (!id) {
+        alert('Please enter an IMDb ID (e.g., tt0944947)');
+        return;
+      }
+
+      if (startSeconds === null) {
+        const list = getHistory();
+        const existing = list.find(item => item.id === id && (currentType === 'movie' || (item.season === season && item.episode === episode)));
+        currentProgressSeconds = existing ? existing.time : 0;
+      } else {
+        currentProgressSeconds = startSeconds;
+      }
+
+      let targetUrl = '';
+      if (currentType === 'tv') {
+        targetUrl = `${config.provider}/tv/${id}/${season}/${episode}`;
+        fetchShowStructure(id);
+      } else {
+        targetUrl = `${config.provider}/${id}`;
+      }
+
+      if (currentProgressSeconds > 0) {
+        const separator = targetUrl.includes('?') ? '&' : '?';
+        targetUrl += `${separator}startAt=${currentProgressSeconds}`;
+      }
+
+      placeholder.style.display = 'none';
+      frame.src = targetUrl;
+      isPlaying = true;
+
+      recordCurrentWatch(id, season, episode, currentType, currentProgressSeconds, currentTitle);
+    }
+
+    async function markAsWatchedTrakt() {
+      const id = document.getElementById('input-id').value.trim();
+      const season = parseInt(document.getElementById('input-season').value, 10);
+      const episode = parseInt(document.getElementById('input-episode').value, 10);
+
+      if (!id) return;
+
+      if (config.traktToken && config.traktClientId) {
+        const payload = currentType === 'tv' 
+          ? { shows: [{ ids: { imdb: id }, seasons: [{ number: season, episodes: [{ number: episode }] }] }] }
+          : { movies: [{ ids: { imdb: id } }] };
+
+        try {
+          const res = await fetch('https://api.trakt.tv/sync/history', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'trakt-api-version': '2',
+              'trakt-api-key': config.traktClientId,
+              'Authorization': `Bearer ${config.traktToken}`
+            },
+            body: JSON.stringify(payload)
+          });
+          if (res.ok) {
+            alert('Marked as watched on Trakt!');
+            return;
+          }
+        } catch (err) {
+          console.error('Trakt API sync failed:', err);
+        }
+      }
+
+      const target = currentType === 'tv' 
+        ? `https://trakt.tv/search/imdb?query=${id}` 
+        : `https://trakt.tv/movies/${id}`;
+      window.open(target, '_blank');
+    }
+
+    function saveSettings() {
+      config.provider = document.getElementById('setting-provider').value.replace(/\/$/, '');
+      config.traktClientId = document.getElementById('setting-trakt-id').value.trim();
+      config.traktToken = document.getElementById('setting-trakt-token').value.trim();
+
+      localStorage.setItem('provider_url', config.provider);
+      localStorage.setItem('trakt_client_id', config.traktClientId);
+      localStorage.setItem('trakt_token', config.traktToken);
+
+      toggleModal('settings-modal');
+    }
+
+    function toggleModal(id) {
+      const modal = document.getElementById(id);
+      modal.style.display = (modal.style.display === 'none' || modal.style.display === '') ? 'flex' : 'none';
+    }
+
+    // Auto-restore initial playback on startup if present
+    window.addEventListener('DOMContentLoaded', () => {
+      const history = getHistory();
+      if (history.length > 0) {
+        const last = history[0];
+        resumeFromItem(last.id, last.season, last.episode, last.type, last.time || 0);
+      }
+    });
+  </script>
+</body>
+</html>
