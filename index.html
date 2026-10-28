@@ -6,8 +6,23 @@
   <title>StreamDeck</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @keyframes slideInUp {
+      from { opacity: 0; transform: translateY(16px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes slideOutRight {
+      from { opacity: 1; transform: translateX(0); }
+      to { opacity: 0; transform: translateX(24px); }
+    }
+    .toast-enter { animation: slideInUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .toast-exit { animation: slideOutRight 0.2s ease-in forwards; }
+  </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans relative">
+
+  <!-- Floating Toast Notifications -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 md:px-0"></div>
 
   <!-- Header with Navigation Tabs -->
   <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur px-4 md:px-8 py-3 flex flex-wrap justify-between items-center gap-4 sticky top-0 z-30">
@@ -75,7 +90,7 @@
           </button>
         </div>
 
-        <button type="button" onclick="markAsWatchedTrakt()" class="flex items-center gap-1.5 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30 px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer">
+        <button type="button" onclick="markAsWatchedTrakt(true)" class="flex items-center gap-1.5 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30 px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer">
           <i class="fa-solid fa-check"></i> <span>Watched</span>
         </button>
       </div>
@@ -95,36 +110,90 @@
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
           <div>
             <h2 class="text-base font-bold text-slate-200">Discover Titles</h2>
-            <p class="text-xs text-slate-400">Trending and popular movies and shows powered by Trakt</p>
+            <p class="text-xs text-slate-400">Explore trending, popular, or your personal Trakt watchlist</p>
           </div>
 
-          <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
-            <button onclick="fetchDiscover('shows', 'trending')" id="tab-shows-trending" class="px-2.5 py-1 rounded-md bg-indigo-600 text-white font-medium">Trending Shows</button>
-            <button onclick="fetchDiscover('movies', 'trending')" id="tab-movies-trending" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">Trending Movies</button>
-            <button onclick="fetchDiscover('shows', 'popular')" id="tab-shows-popular" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">Popular Shows</button>
-            <button onclick="fetchDiscover('movies', 'popular')" id="tab-movies-popular" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">Popular Movies</button>
+          <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs flex-wrap">
+            <button onclick="changeDiscoverCategory('shows', 'trending')" id="tab-shows-trending" class="px-2.5 py-1 rounded-md bg-indigo-600 text-white font-medium">Trending Shows</button>
+            <button onclick="changeDiscoverCategory('movies', 'trending')" id="tab-movies-trending" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">Trending Movies</button>
+            <button onclick="changeDiscoverCategory('shows', 'popular')" id="tab-shows-popular" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">Popular Shows</button>
+            <button onclick="changeDiscoverCategory('movies', 'popular')" id="tab-movies-popular" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">Popular Movies</button>
+            <button onclick="changeDiscoverCategory('watchlist', 'all')" id="tab-watchlist" class="hidden px-2.5 py-1 rounded-md text-slate-400 hover:text-white border border-indigo-500/20">
+              <i class="fa-solid fa-bookmark mr-1 text-indigo-400"></i> Watch List
+            </button>
           </div>
         </div>
 
-        <div id="discover-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5 pt-1"></div>
+        <div id="discover-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 pt-1 min-h-[420px]"></div>
+
+        <div id="discover-pagination" class="flex items-center justify-between border-t border-slate-800 pt-3">
+          <button id="btn-page-prev" onclick="changePage(-1)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer">
+            <i class="fa-solid fa-chevron-left mr-1"></i> Previous
+          </button>
+          <span id="page-display" class="text-xs font-mono text-slate-400">Page 1</span>
+          <button id="btn-page-next" onclick="changePage(1)" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-medium text-white transition cursor-pointer">
+            Next <i class="fa-solid fa-chevron-right ml-1"></i>
+          </button>
+        </div>
       </div>
     </section>
 
     <!-- ================= TAB 3: RECENTLY WATCHED ================= -->
-    <section id="tab-content-history" class="hidden flex-col gap-4">
+    <section id="tab-content-history" class="hidden flex-col gap-6">
+      
+      <!-- 1. Local Recent Sessions -->
       <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
-        <div class="border-b border-slate-800 pb-3">
-          <h2 class="text-base font-bold text-slate-200">Recently Watched</h2>
-          <p class="text-xs text-slate-400">Your last 5 sessions with automatically saved progress timestamps</p>
+        <div class="border-b border-slate-800 pb-3 flex justify-between items-center">
+          <div>
+            <h2 class="text-base font-bold text-slate-200">Local Sessions (Last 5)</h2>
+            <p class="text-xs text-slate-400">Fast local browser storage with exact second timestamps</p>
+          </div>
+          <span class="text-xs text-indigo-400 font-mono bg-indigo-950/60 border border-indigo-800/40 px-2 py-0.5 rounded">Local Cache</span>
         </div>
-
         <div id="history-full-list" class="space-y-2.5"></div>
       </div>
+
+      <!-- 2. Trakt In-Progress (Continue Watching) -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
+        <div class="border-b border-slate-800 pb-3 flex justify-between items-center">
+          <div>
+            <h2 class="text-base font-bold text-slate-200 flex items-center gap-2">
+              <i class="fa-solid fa-play text-xs text-indigo-400"></i> Trakt Continue Watching
+            </h2>
+            <p class="text-xs text-slate-400">Items paused mid-way across your Trakt devices</p>
+          </div>
+          <button onclick="fetchTraktPlayback()" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer">
+            <i class="fa-solid fa-arrows-rotate"></i> Refresh
+          </button>
+        </div>
+        <div id="trakt-playback-list" class="space-y-2.5">
+          <div class="text-xs text-slate-500 text-center py-6">Connect Trakt in Settings to see in-progress playback.</div>
+        </div>
+      </div>
+
+      <!-- 3. Trakt Watched History -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
+        <div class="border-b border-slate-800 pb-3 flex justify-between items-center">
+          <div>
+            <h2 class="text-base font-bold text-slate-200 flex items-center gap-2">
+              <i class="fa-solid fa-check-double text-xs text-emerald-400"></i> Trakt Watched History
+            </h2>
+            <p class="text-xs text-slate-400">Completed shows and movies registered in your Trakt cloud history</p>
+          </div>
+          <button onclick="fetchTraktCompletedHistory()" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer">
+            <i class="fa-solid fa-arrows-rotate"></i> Refresh
+          </button>
+        </div>
+        <div id="trakt-completed-list" class="space-y-2.5">
+          <div class="text-xs text-slate-500 text-center py-6">Connect Trakt in Settings to see completed history.</div>
+        </div>
+      </div>
+
     </section>
 
   </main>
 
-  <!-- Settings Modal with Trakt PKCE Login -->
+  <!-- Settings Modal -->
   <div id="settings-modal" style="display: none;" class="fixed inset-0 bg-black/60 backdrop-blur-sm items-center justify-center p-4 z-50">
     <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
       <h3 class="text-base font-bold">Player & Trakt Settings</h3>
@@ -134,22 +203,37 @@
         <input id="setting-provider" type="text" value="https://vidsrc.to/embed" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200">
       </div>
 
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">TMDB API Read Key (Optional for Movie Posters)</label>
+        <input id="setting-tmdb-key" type="text" placeholder="Optional - fetches official movie posters" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200">
+        <p class="text-[10px] text-slate-500 mt-0.5">TV shows already use TVMaze posters for free without any key.</p>
+      </div>
+
       <div class="border-t border-slate-800 pt-3 space-y-3">
         <div class="flex items-center justify-between">
-          <label class="text-xs font-semibold text-slate-300">Trakt Integration (PKCE)</label>
+          <label class="text-xs font-semibold text-slate-300">Trakt Connection</label>
           <span id="trakt-auth-badge" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400">Not Connected</span>
         </div>
 
         <div>
           <label class="block text-[11px] text-slate-400 mb-0.5">Trakt Client ID</label>
-          <input id="setting-trakt-id" type="text" placeholder="Your Trakt App Client ID" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200">
-          <p class="text-[10px] text-slate-500 mt-1">Make sure Redirect URI in your Trakt App matches your current URL.</p>
+          <input id="setting-trakt-id" type="text" placeholder="Paste your Trakt Client ID" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200">
         </div>
 
-        <!-- 1-Click PKCE Login Button -->
-        <div id="trakt-login-area">
-          <button id="btn-pkce-login" type="button" onclick="startTraktPKCE()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 rounded-lg text-xs transition cursor-pointer flex items-center justify-center gap-1.5">
-            <i class="fa-solid fa-arrow-right-to-bracket"></i> Login with Trakt (PKCE)
+        <div id="device-auth-box" style="display: none;" class="bg-indigo-950/40 border border-indigo-500/30 p-3 rounded-lg text-center space-y-2">
+          <p class="text-xs text-indigo-300">Go to Trakt and enter this code:</p>
+          <div class="text-lg font-mono font-bold tracking-widest text-white bg-slate-950 py-1.5 rounded border border-indigo-400/40 select-all" id="device-user-code">----</div>
+          <button type="button" id="btn-open-activate" class="text-[11px] bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded transition cursor-pointer">
+            <i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> Open trakt.tv/activate
+          </button>
+          <p class="text-[10px] text-slate-400 flex items-center justify-center gap-1.5 pt-1">
+            <i class="fa-solid fa-spinner fa-spin text-indigo-400"></i> Waiting for approval...
+          </p>
+        </div>
+
+        <div id="trakt-action-area">
+          <button id="btn-device-connect" type="button" onclick="startTraktDeviceFlow()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 rounded-lg text-xs transition cursor-pointer flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-link"></i> Connect Trakt (Device Code)
           </button>
         </div>
       </div>
@@ -168,127 +252,168 @@
     let isPlaying = false;
     let currentTitle = '';
     let currentProgressSeconds = 0;
+    let currentDurationSeconds = 0;
+    let pollInterval = null;
+    let episodesManifest = [];
+
+    // Discover State
+    let discoverMedia = 'shows';
+    let discoverFilter = 'trending';
+    let discoverPage = 1;
+    const posterCache = {};
 
     const config = {
       provider: localStorage.getItem('provider_url') || DEFAULT_PROVIDER,
       traktClientId: localStorage.getItem('trakt_client_id') || '',
-      traktToken: localStorage.getItem('trakt_token') || ''
+      traktToken: localStorage.getItem('trakt_token') || '',
+      tmdbKey: localStorage.getItem('tmdb_key') || ''
     };
 
     document.getElementById('setting-provider').value = config.provider;
     document.getElementById('setting-trakt-id').value = config.traktClientId;
+    document.getElementById('setting-tmdb-key').value = config.tmdbKey;
     updateAuthBadge();
 
-    // --- PKCE CRYPTOGRAPHIC HELPERS ---
-    function base64UrlEncode(arrayBuffer) {
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = '';
-      for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      return btoa(binary)
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
+    // --- OVERLAY TOAST NOTIFICATION SYSTEM ---
+    function showToast(message, type = 'success', duration = 3500) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      
+      const icons = {
+        success: 'fa-circle-check text-emerald-400',
+        error: 'fa-circle-exclamation text-rose-400',
+        warning: 'fa-triangle-exclamation text-amber-400',
+        info: 'fa-circle-info text-indigo-400'
+      };
+
+      const borders = {
+        success: 'border-emerald-500/40 bg-slate-900/95 text-emerald-100',
+        error: 'border-rose-500/40 bg-slate-900/95 text-rose-100',
+        warning: 'border-amber-500/40 bg-slate-900/95 text-amber-100',
+        info: 'border-indigo-500/40 bg-slate-900/95 text-indigo-100'
+      };
+
+      toast.className = `toast-enter pointer-events-auto flex items-center justify-between gap-3 px-4 py-3 rounded-xl border ${borders[type] || borders.info} shadow-2xl backdrop-blur-md`;
+
+      toast.innerHTML = `
+        <div class="flex items-center gap-2.5">
+          <i class="fa-solid ${icons[type] || icons.info} text-base shrink-0"></i>
+          <span class="text-xs font-medium leading-snug">${message}</span>
+        </div>
+        <button type="button" class="text-slate-400 hover:text-white transition shrink-0 ml-2 focus:outline-none">
+          <i class="fa-solid fa-xmark text-xs"></i>
+        </button>
+      `;
+
+      const closeBtn = toast.querySelector('button');
+      const removeToast = () => {
+        toast.classList.remove('toast-enter');
+        toast.classList.add('toast-exit');
+        setTimeout(() => toast.remove(), 200);
+      };
+
+      closeBtn.onclick = removeToast;
+      container.appendChild(toast);
+      setTimeout(removeToast, duration);
     }
 
-    function generateRandomString(length = 64) {
-      const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-      const randomValues = new Uint8Array(length);
-      window.crypto.getRandomValues(randomValues);
-      return Array.from(randomValues).map(val => charset[val % charset.length]).join('');
-    }
-
-    async function sha256(plain) {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(plain);
-      return await window.crypto.subtle.digest('SHA-256', data);
-    }
-
-    // Redirect user to Trakt with code_challenge
-    async function startTraktPKCE() {
+    // --- TRAKT DEVICE CODE FLOW ---
+    async function startTraktDeviceFlow() {
       const clientId = document.getElementById('setting-trakt-id').value.trim();
       if (!clientId) {
-        alert('Please enter your Trakt Client ID first.');
+        showToast('Please enter your Trakt Client ID first.', 'warning');
         return;
       }
 
-      // Save Client ID
       config.traktClientId = clientId;
       localStorage.setItem('trakt_client_id', clientId);
 
-      // Generate Verifier & Challenge
-      const verifier = generateRandomString(64);
-      sessionStorage.setItem('trakt_pkce_verifier', verifier);
+      const btn = document.getElementById('btn-device-connect');
+      const authBox = document.getElementById('device-auth-box');
+      const codeDiv = document.getElementById('device-user-code');
+      const openBtn = document.getElementById('btn-open-activate');
 
-      const hashed = await sha256(verifier);
-      const challenge = base64UrlEncode(hashed);
-
-      // Strict redirect URI matching current origin + path
-      const redirectUri = window.location.origin + window.location.pathname;
-
-      const authUrl = new URL('https://trakt.tv/oauth/authorize');
-      authUrl.searchParams.set('response_type', 'code');
-      authUrl.searchParams.set('client_id', clientId);
-      authUrl.searchParams.set('redirect_uri', redirectUri);
-      authUrl.searchParams.set('code_challenge', challenge);
-      authUrl.searchParams.set('code_challenge_method', 'S256');
-
-      window.location.href = authUrl.toString();
-    }
-
-    // Exchange auth code + code_verifier for access_token (NO SECRET NEEDED)
-    async function handlePKCECallback() {
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get('code');
-      if (!code) return;
-
-      const verifier = sessionStorage.getItem('trakt_pkce_verifier');
-      if (!verifier) return;
-
-      const redirectUri = window.location.origin + window.location.pathname;
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Requesting code...`;
 
       try {
-        const res = await fetch('https://api.trakt.tv/oauth/token', {
+        const res = await fetch('https://api.trakt.tv/oauth/device/code', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code: code,
-            client_id: config.traktClientId,
-            redirect_uri: redirectUri,
-            grant_type: 'authorization_code',
-            code_verifier: verifier
-          })
+          body: JSON.stringify({ client_id: clientId })
         });
 
-        if (!res.ok) throw new Error('Token exchange failed.');
-        const tokenData = await res.json();
+        if (!res.ok) throw new Error('Could not get device code. Verify your Client ID.');
+        const data = await res.json();
 
-        config.traktToken = tokenData.access_token;
-        localStorage.setItem('trakt_token', tokenData.access_token);
-        sessionStorage.removeItem('trakt_pkce_verifier');
+        codeDiv.innerText = data.user_code;
+        authBox.style.display = 'block';
+        btn.style.display = 'none';
 
-        // Clean up URL query parameters without reloading
-        window.history.replaceState({}, document.title, window.location.pathname);
+        openBtn.onclick = () => window.open(data.verification_url, '_blank');
+        window.open(data.verification_url, '_blank');
 
-        updateAuthBadge();
-        alert('Successfully connected to Trakt with PKCE!');
+        pollForDeviceToken(data.device_code, data.interval || 5, data.expires_in || 600);
       } catch (err) {
-        console.error('PKCE Exchange Error:', err);
-        sessionStorage.removeItem('trakt_pkce_verifier');
+        showToast(err.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-link"></i> Connect Trakt (Device Code)`;
       }
+    }
+
+    function pollForDeviceToken(deviceCode, intervalSec, expiresIn) {
+      if (pollInterval) clearInterval(pollInterval);
+      const startTime = Date.now();
+
+      pollInterval = setInterval(async () => {
+        if ((Date.now() - startTime) / 1000 > expiresIn) {
+          clearInterval(pollInterval);
+          document.getElementById('device-auth-box').style.display = 'none';
+          document.getElementById('btn-device-connect').style.display = 'flex';
+          document.getElementById('btn-device-connect').disabled = false;
+          document.getElementById('btn-device-connect').innerHTML = `<i class="fa-solid fa-link"></i> Connect Trakt (Device Code)`;
+          showToast('Device code expired. Please click connect again.', 'warning');
+          return;
+        }
+
+        try {
+          const res = await fetch('https://api.trakt.tv/oauth/device/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              code: deviceCode,
+              client_id: config.traktClientId
+            })
+          });
+
+          if (res.status === 200) {
+            clearInterval(pollInterval);
+            const tokenData = await res.json();
+
+            config.traktToken = tokenData.access_token;
+            localStorage.setItem('trakt_token', tokenData.access_token);
+
+            document.getElementById('device-auth-box').style.display = 'none';
+            document.getElementById('btn-device-connect').style.display = 'flex';
+            updateAuthBadge();
+            showToast('Successfully connected to Trakt!', 'success');
+          }
+        } catch {}
+      }, intervalSec * 1000);
     }
 
     function updateAuthBadge() {
       const badge = document.getElementById('trakt-auth-badge');
       const dot = document.getElementById('trakt-status-dot');
-      const loginArea = document.getElementById('trakt-login-area');
+      const actionArea = document.getElementById('trakt-action-area');
+      const watchlistTab = document.getElementById('tab-watchlist');
 
       if (config.traktToken) {
         badge.innerText = 'Connected';
         badge.className = 'text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800/40';
         dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
-        loginArea.innerHTML = `
+        if (watchlistTab) watchlistTab.classList.remove('hidden');
+        actionArea.innerHTML = `
           <button type="button" onclick="disconnectTrakt()" class="w-full bg-slate-800 hover:bg-rose-950/60 hover:text-rose-300 text-slate-300 font-medium py-1.5 rounded-lg text-xs transition cursor-pointer border border-slate-700">
             Disconnect Trakt
           </button>`;
@@ -296,9 +421,10 @@
         badge.innerText = 'Not Connected';
         badge.className = 'text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400';
         dot.className = 'w-2 h-2 rounded-full bg-slate-600';
-        loginArea.innerHTML = `
-          <button id="btn-pkce-login" type="button" onclick="startTraktPKCE()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 rounded-lg text-xs transition cursor-pointer flex items-center justify-center gap-1.5">
-            <i class="fa-solid fa-arrow-right-to-bracket"></i> Login with Trakt (PKCE)
+        if (watchlistTab) watchlistTab.classList.add('hidden');
+        actionArea.innerHTML = `
+          <button id="btn-device-connect" type="button" onclick="startTraktDeviceFlow()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 rounded-lg text-xs transition cursor-pointer flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-link"></i> Connect Trakt (Device Code)
           </button>`;
       }
     }
@@ -306,7 +432,10 @@
     function disconnectTrakt() {
       config.traktToken = '';
       localStorage.removeItem('trakt_token');
+      if (pollInterval) clearInterval(pollInterval);
+      document.getElementById('device-auth-box').style.display = 'none';
       updateAuthBadge();
+      showToast('Disconnected from Trakt.', 'info');
     }
 
     // --- TAB SWITCHER LOGIC ---
@@ -326,8 +455,12 @@
         }
       });
 
-      if (tabId === 'history') renderHistoryTab();
-      if (tabId === 'discover') fetchDiscover('shows', 'trending');
+      if (tabId === 'history') {
+        renderHistoryTab();
+        fetchTraktPlayback();
+        fetchTraktCompletedHistory();
+      }
+      if (tabId === 'discover') fetchDiscover();
     }
 
     ['input-id', 'input-season', 'input-episode'].forEach(id => {
@@ -336,7 +469,7 @@
       });
     });
 
-    // --- HISTORY ENGINE (5 ITEMS) ---
+    // --- LOCAL HISTORY ENGINE (5 ITEMS) ---
     function getHistory() {
       try {
         return JSON.parse(localStorage.getItem('streamdeck_history') || '[]');
@@ -389,7 +522,7 @@
       const list = getHistory();
 
       if (list.length === 0) {
-        container.innerHTML = `<div class="text-xs text-slate-500 text-center py-12">No watch history found.</div>`;
+        container.innerHTML = `<div class="text-xs text-slate-500 text-center py-6">No local watch history found.</div>`;
         return;
       }
 
@@ -405,7 +538,7 @@
                 </span>
               </div>
               <div class="text-xs text-slate-400 mt-1 flex items-center gap-3">
-                <span><i class="fa-regular fa-clock text-[10px] mr-1"></i>Position: ${formatSeconds(item.time || 0)}</span>
+                <span><i class="fa-regular fa-clock text-[10px] mr-1"></i>Saved: ${formatSeconds(item.time || 0)}</span>
                 <span class="text-slate-600">•</span>
                 <span class="font-mono text-slate-500">${item.id}</span>
               </div>
@@ -419,7 +552,145 @@
       `).join('');
     }
 
+    // --- TRAKT CONTINUE WATCHING (/sync/playback) ---
+    async function fetchTraktPlayback() {
+      const container = document.getElementById('trakt-playback-list');
+      if (!config.traktToken || !config.traktClientId) {
+        container.innerHTML = `<div class="text-xs text-slate-500 text-center py-6">Connect Trakt in Settings to see in-progress playback.</div>`;
+        return;
+      }
+
+      container.innerHTML = `<div class="text-xs text-slate-500 text-center py-6"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading in-progress items...</div>`;
+
+      try {
+        const res = await fetch('https://api.trakt.tv/sync/playback?limit=10', {
+          headers: {
+            'Content-Type': 'application/json',
+            'trakt-api-version': '2',
+            'trakt-api-key': config.traktClientId,
+            'Authorization': `Bearer ${config.traktToken}`
+          }
+        });
+
+        if (!res.ok) throw new Error('Could not fetch playback.');
+        const items = await res.json();
+
+        if (!items || items.length === 0) {
+          container.innerHTML = `<div class="text-xs text-slate-500 text-center py-6">No in-progress items on Trakt.</div>`;
+          return;
+        }
+
+        container.innerHTML = items.map(entry => {
+          const isShow = entry.type === 'episode';
+          const title = isShow ? entry.show.title : entry.movie.title;
+          const imdbId = isShow ? entry.show.ids.imdb : entry.movie.ids.imdb;
+          const season = isShow ? entry.episode.season : null;
+          const episode = isShow ? entry.episode.number : null;
+          const mediaType = isShow ? 'tv' : 'movie';
+          const progressPercent = Math.round(entry.progress || 0);
+
+          return `
+            <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-indigo-500/50 transition">
+              <div class="flex items-center gap-3">
+                <i class="fa-solid ${isShow ? 'fa-tv text-indigo-400' : 'fa-film text-emerald-400'} text-base"></i>
+                <div>
+                  <div class="text-sm font-semibold text-slate-200">
+                    ${title}
+                    <span class="ml-2 text-[10px] px-1.5 py-0.5 rounded ${isShow ? 'bg-indigo-950 text-indigo-400 border border-indigo-800/40' : 'bg-emerald-950 text-emerald-400 border border-emerald-800/40'}">
+                      ${isShow ? `S${season} E${episode}` : 'Movie'}
+                    </span>
+                  </div>
+                  <div class="text-xs text-slate-400 mt-1 flex items-center gap-3">
+                    <span class="text-indigo-400 font-medium">${progressPercent}% watched</span>
+                    <span class="text-slate-600">•</span>
+                    <span class="font-mono text-slate-500">${imdbId || 'No IMDb ID'}</span>
+                  </div>
+                </div>
+              </div>
+              <button type="button" onclick="resumeFromItem('${imdbId}', ${season || 1}, ${episode || 1}, '${mediaType}', 0)" 
+                      class="px-3.5 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition cursor-pointer">
+                Resume <i class="fa-solid fa-play ml-1 text-[10px]"></i>
+              </button>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        container.innerHTML = `<div class="text-xs text-rose-400 text-center py-6">${err.message}</div>`;
+      }
+    }
+
+    // --- TRAKT COMPLETED HISTORY (/sync/history) ---
+    async function fetchTraktCompletedHistory() {
+      const container = document.getElementById('trakt-completed-list');
+      if (!config.traktToken || !config.traktClientId) {
+        container.innerHTML = `<div class="text-xs text-slate-500 text-center py-6">Connect Trakt in Settings to see completed history.</div>`;
+        return;
+      }
+
+      container.innerHTML = `<div class="text-xs text-slate-500 text-center py-6"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading watched history...</div>`;
+
+      try {
+        const res = await fetch('https://api.trakt.tv/sync/history?page=1&limit=8&extended=full', {
+          headers: {
+            'Content-Type': 'application/json',
+            'trakt-api-version': '2',
+            'trakt-api-key': config.traktClientId,
+            'Authorization': `Bearer ${config.traktToken}`
+          }
+        });
+
+        if (!res.ok) throw new Error('Could not fetch Trakt history.');
+        const items = await res.json();
+
+        if (!items || items.length === 0) {
+          container.innerHTML = `<div class="text-xs text-slate-500 text-center py-6">No completed watch history found on Trakt.</div>`;
+          return;
+        }
+
+        container.innerHTML = items.map(entry => {
+          const isShow = entry.type === 'episode';
+          const title = isShow ? entry.show.title : entry.movie.title;
+          const imdbId = isShow ? entry.show.ids.imdb : entry.movie.ids.imdb;
+          const season = isShow ? entry.episode.season : null;
+          const episode = isShow ? entry.episode.number : null;
+          const mediaType = isShow ? 'tv' : 'movie';
+          const dateStr = new Date(entry.watched_at).toLocaleDateString();
+
+          return `
+            <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-indigo-500/50 transition">
+              <div class="flex items-center gap-3">
+                <i class="fa-solid ${isShow ? 'fa-tv text-slate-400' : 'fa-film text-slate-400'} text-base"></i>
+                <div>
+                  <div class="text-sm font-semibold text-slate-200">
+                    ${title}
+                    <span class="ml-2 text-[10px] px-1.5 py-0.5 rounded ${isShow ? 'bg-indigo-950 text-indigo-400 border border-indigo-800/40' : 'bg-emerald-950 text-emerald-400 border border-emerald-800/40'}">
+                      ${isShow ? `S${season} E${episode}` : 'Movie'}
+                    </span>
+                  </div>
+                  <div class="text-xs text-slate-400 mt-1 flex items-center gap-3">
+                    <span>Watched on ${dateStr}</span>
+                    <span class="text-slate-600">•</span>
+                    <span class="font-mono text-slate-500">${imdbId || 'No IMDb ID'}</span>
+                  </div>
+                </div>
+              </div>
+              <button type="button" onclick="resumeFromItem('${imdbId}', ${season || 1}, ${episode || 1}, '${mediaType}', 0)" 
+                      class="px-3.5 py-1.5 text-xs bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white rounded-lg font-medium transition cursor-pointer">
+                Replay <i class="fa-solid fa-rotate-left ml-1 text-[10px]"></i>
+              </button>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        container.innerHTML = `<div class="text-xs text-rose-400 text-center py-6">${err.message}</div>`;
+      }
+    }
+
     function resumeFromItem(id, season, episode, type, time = 0) {
+      if (!id || id === 'null') {
+        showToast('No IMDb ID available for this title.', 'warning');
+        return;
+      }
       setType(type);
       document.getElementById('input-id').value = id;
       if (type === 'tv') {
@@ -431,24 +702,183 @@
       loadPlayer(currentProgressSeconds);
     }
 
+    // --- AUTO-SCROBBLE / AUTO-SYNC PROGRESS (Trakt API) ---
+    // Uses action: 'pause' for in-progress; 'stop' for finished (>=80% or ended)
+    function sendTraktScrobble(action = 'pause') {
+      if (!config.traktToken || !config.traktClientId) return;
+
+      const id = document.getElementById('input-id').value.trim();
+      const season = parseInt(document.getElementById('input-season').value, 10);
+      const episode = parseInt(document.getElementById('input-episode').value, 10);
+      if (!id || !isPlaying) return;
+
+      // Calculate progress percentage
+      let progressPercent = 0;
+      if (currentDurationSeconds > 0 && currentProgressSeconds > 0) {
+        progressPercent = Math.min(100, (currentProgressSeconds / currentDurationSeconds) * 100);
+      } else if (currentProgressSeconds > 0) {
+        // Fallback estimate if duration not emitted by provider
+        progressPercent = currentType === 'tv' 
+          ? Math.min(95, (currentProgressSeconds / 2700) * 100)  // Assume 45 min
+          : Math.min(95, (currentProgressSeconds / 6600) * 100); // Assume 110 min
+      }
+
+      if (action === 'stop' || progressPercent >= 85) {
+        action = 'stop';
+        progressPercent = Math.max(progressPercent, 90);
+      }
+
+      const payload = {
+        progress: progressPercent
+      };
+
+      if (currentType === 'tv') {
+        payload.show = { ids: { imdb: id } };
+        payload.episode = { season, number: episode };
+      } else {
+        payload.movie = { ids: { imdb: id } };
+      }
+
+      // Using keepalive: true ensures the browser finishes delivery even if the tab closes
+      try {
+        fetch(`https://api.trakt.tv/scrobble/${action}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'trakt-api-version': '2',
+            'trakt-api-key': config.traktClientId,
+            'Authorization': `Bearer ${config.traktToken}`
+          },
+          body: JSON.stringify(payload),
+          keepalive: true
+        });
+      } catch {}
+    }
+
+    // Capture closing tab, navigating away, or minimizing to sync progress
+    window.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden' && isPlaying) {
+        sendTraktScrobble('pause');
+      }
+    });
+
+    window.addEventListener('pagehide', () => {
+      if (isPlaying) {
+        sendTraktScrobble('pause');
+      }
+    });
+
+    // Embed postMessage listener for automatic timecode and ended detection
     window.addEventListener('message', (event) => {
       try {
         const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
         if (!data) return;
+
+        // Current playback seconds
         const seconds = data.seconds ?? data.currentTime ?? data.time ?? (data.event === 'timeupdate' ? data.data?.seconds : null);
         if (typeof seconds === 'number' && !isNaN(seconds) && seconds > 0) {
           updateActiveProgressInHistory(seconds);
         }
+
+        // Total duration (if emitted)
+        const duration = data.duration ?? (data.event === 'timeupdate' ? data.data?.duration : null);
+        if (typeof duration === 'number' && !isNaN(duration) && duration > 0) {
+          currentDurationSeconds = duration;
+        }
+
+        // Detect end of episode / movie
+        if (data.event === 'ended' || data === 'ended') {
+          showToast('Completed! Auto-marking as watched on Trakt...', 'success');
+          sendTraktScrobble('stop');
+          markAsWatchedTrakt(false);
+          // Auto advance to next episode if manifest is loaded
+          advanceNextEpisodeAuto();
+        }
       } catch {}
     });
 
-    // --- DISCOVERY LOGIC ---
-    async function fetchDiscover(mediaType, filter) {
+    async function advanceNextEpisodeAuto() {
+      if (currentType !== 'tv') return;
+      let season = parseInt(document.getElementById('input-season').value, 10);
+      let episode = parseInt(document.getElementById('input-episode').value, 10);
+
+      if (episodesManifest.length > 0) {
+        const currentIndex = episodesManifest.findIndex(e => e.season === season && e.number === episode);
+        if (currentIndex !== -1 && currentIndex + 1 < episodesManifest.length) {
+          const nextTarget = episodesManifest[currentIndex + 1];
+          document.getElementById('input-season').value = nextTarget.season;
+          document.getElementById('input-episode').value = nextTarget.number;
+          currentProgressSeconds = 0;
+          showToast(`Playing next episode: S${nextTarget.season} E${nextTarget.number}`, 'info');
+          loadPlayer(0);
+        }
+      }
+    }
+
+    // --- POSTER RESOLUTION LOGIC ---
+    async function resolvePoster(imdbId, type) {
+      if (posterCache[imdbId]) return posterCache[imdbId];
+
+      if (type === 'tv') {
+        try {
+          const res = await fetch(`https://api.tvmaze.com/lookup/shows?imdb=${imdbId}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.image?.medium || data.image?.original) {
+              const url = data.image.medium || data.image.original;
+              posterCache[imdbId] = url;
+              return url;
+            }
+          }
+        } catch {}
+      }
+
+      if (config.tmdbKey) {
+        try {
+          const res = await fetch(`https://api.themoviedb.org/3/find/${imdbId}?api_key=${config.tmdbKey}&external_source=imdb_id`);
+          if (res.ok) {
+            const data = await res.json();
+            const hit = data.movie_results?.[0] || data.tv_results?.[0];
+            if (hit?.poster_path) {
+              const url = `https://image.tmdb.org/t/p/w500${hit.poster_path}`;
+              posterCache[imdbId] = url;
+              return url;
+            }
+          }
+        } catch {}
+      }
+
+      return null;
+    }
+
+    // --- DISCOVERY & PAGINATION LOGIC ---
+    function changeDiscoverCategory(mediaType, filter) {
+      discoverMedia = mediaType;
+      discoverFilter = filter;
+      discoverPage = 1;
+      fetchDiscover();
+    }
+
+    function changePage(delta) {
+      discoverPage = Math.max(1, discoverPage + delta);
+      fetchDiscover();
+    }
+
+    async function fetchDiscover() {
       const grid = document.getElementById('discover-grid');
-      
-      ['shows-trending', 'movies-trending', 'shows-popular', 'movies-popular'].forEach(id => {
+      const pageDisplay = document.getElementById('page-display');
+      const prevBtn = document.getElementById('btn-page-prev');
+      const pagination = document.getElementById('discover-pagination');
+
+      pageDisplay.innerText = `Page ${discoverPage}`;
+      prevBtn.disabled = discoverPage <= 1;
+
+      // Update Filter Tabs
+      ['shows-trending', 'movies-trending', 'shows-popular', 'movies-popular', 'watchlist'].forEach(id => {
         const btn = document.getElementById(`tab-${id}`);
-        if (id === `${mediaType}-${filter}`) {
+        if (!btn) return;
+        const matches = (id === 'watchlist' && discoverMedia === 'watchlist') || (id === `${discoverMedia}-${discoverFilter}`);
+        if (matches) {
           btn.className = "px-2.5 py-1 rounded-md bg-indigo-600 text-white font-medium";
         } else {
           btn.className = "px-2.5 py-1 rounded-md text-slate-400 hover:text-white";
@@ -457,7 +887,7 @@
 
       if (!config.traktClientId) {
         grid.innerHTML = `
-          <div class="col-span-full py-12 text-center bg-slate-950/60 rounded-xl border border-slate-800">
+          <div class="col-span-full py-16 text-center bg-slate-950/60 rounded-xl border border-slate-800">
             <p class="text-sm text-slate-300 font-medium mb-1">Trakt Client ID required.</p>
             <p class="text-xs text-slate-500 mb-3">Add your Trakt app Client ID in settings to load trending and popular titles.</p>
             <button onclick="toggleModal('settings-modal')" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 rounded-lg transition cursor-pointer">Open Settings</button>
@@ -465,21 +895,35 @@
         return;
       }
 
-      grid.innerHTML = `<div class="col-span-full py-12 text-center text-xs text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading titles...</div>`;
+      grid.innerHTML = `<div class="col-span-full py-20 text-center text-xs text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading...</div>`;
 
       try {
-        const res = await fetch(`https://api.trakt.tv/${mediaType}/${filter}?page=1&limit=15&extended=full`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'trakt-api-version': '2',
-            'trakt-api-key': config.traktClientId
-          }
-        });
+        let endpoint = '';
+        let headers = {
+          'Content-Type': 'application/json',
+          'trakt-api-version': '2',
+          'trakt-api-key': config.traktClientId
+        };
 
+        if (discoverMedia === 'watchlist') {
+          pagination.classList.add('hidden');
+          endpoint = `https://api.trakt.tv/sync/watchlist?extended=full`;
+          headers['Authorization'] = `Bearer ${config.traktToken}`;
+        } else {
+          pagination.classList.remove('hidden');
+          endpoint = `https://api.trakt.tv/${discoverMedia}/${discoverFilter}?page=${discoverPage}&limit=15&extended=full`;
+        }
+
+        const res = await fetch(endpoint, { headers });
         if (!res.ok) throw new Error('Trakt fetch failed');
         const data = await res.json();
 
-        grid.innerHTML = data.map(entry => {
+        if (data.length === 0) {
+          grid.innerHTML = `<div class="col-span-full py-12 text-center text-xs text-slate-500">No titles found.</div>`;
+          return;
+        }
+
+        grid.innerHTML = data.map((entry, idx) => {
           const item = entry.movie || entry.show || entry;
           const imdbId = item.ids?.imdb;
           if (!imdbId) return '';
@@ -487,26 +931,57 @@
           const title = item.title;
           const year = item.year || '';
           const rating = item.rating ? item.rating.toFixed(1) : 'N/A';
-          const type = mediaType === 'shows' ? 'tv' : 'movie';
+          const type = (discoverMedia === 'watchlist') ? (entry.type === 'show' ? 'tv' : 'movie') : (discoverMedia === 'shows' ? 'tv' : 'movie');
+          const posterElementId = `poster-${imdbId}-${idx}`;
 
           return `
             <div onclick="selectDiscoverItem('${imdbId}', '${type}', '${title.replace(/'/g, "\\'")}')" 
-                 class="group bg-slate-950 border border-slate-800 hover:border-indigo-500 rounded-xl p-3 flex flex-col justify-between cursor-pointer transition shadow hover:-translate-y-0.5">
-              <div>
-                <div class="flex items-center justify-between text-[11px] mb-1">
-                  <span class="text-slate-400">${year}</span>
-                  <span class="text-amber-400 font-bold"><i class="fa-solid fa-star text-[9px] mr-1"></i>${rating}</span>
-                </div>
-                <h4 class="text-xs font-semibold text-slate-200 line-clamp-2 group-hover:text-indigo-400 transition">${title}</h4>
+                 class="group bg-slate-950 border border-slate-800 hover:border-indigo-500 rounded-xl overflow-hidden flex flex-col justify-between cursor-pointer transition shadow hover:-translate-y-1">
+              <div class="relative w-full aspect-[2/3] bg-slate-900 overflow-hidden">
+                <img id="${posterElementId}" 
+                     src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 300'%3E%3Crect fill='%230f172a' width='200' height='300'/%3E%3Ctext fill='%23475569' font-size='14' font-family='sans-serif' x='50%25' y='50%25' text-anchor='middle'%3ELoading...%3C/text%3E%3C/svg%3E" 
+                     alt="${title}" 
+                     class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                <span class="absolute top-2 right-2 text-[10px] font-bold bg-black/70 backdrop-blur-sm text-amber-400 px-1.5 py-0.5 rounded flex items-center gap-1">
+                  <i class="fa-solid fa-star text-[9px]"></i>${rating}
+                </span>
+                <span class="absolute top-2 left-2 text-[9px] uppercase font-mono px-1.5 py-0.5 rounded font-bold ${type === 'tv' ? 'bg-indigo-950/80 text-indigo-400 border border-indigo-700/50' : 'bg-emerald-950/80 text-emerald-400 border border-emerald-700/50'}">
+                  ${type}
+                </span>
               </div>
-              <div class="mt-4 flex items-center justify-between">
-                <span class="text-[10px] uppercase font-mono text-slate-500">${type}</span>
-                <span class="text-[10px] bg-indigo-600/20 text-indigo-400 px-2 py-0.5 rounded border border-indigo-500/30">Stream</span>
+
+              <div class="p-2.5 flex flex-col justify-between flex-1">
+                <div>
+                  <h4 class="text-xs font-semibold text-slate-200 line-clamp-1 group-hover:text-indigo-400 transition" title="${title}">${title}</h4>
+                  <span class="text-[11px] text-slate-500 font-mono">${year}</span>
+                </div>
+                <div class="mt-2.5">
+                  <span class="w-full text-center block text-[10px] bg-indigo-600/20 group-hover:bg-indigo-600 text-indigo-400 group-hover:text-white py-1 rounded transition border border-indigo-500/30">
+                    Watch Now
+                  </span>
+                </div>
               </div>
             </div>`;
         }).join('');
+
+        data.forEach(async (entry, idx) => {
+          const item = entry.movie || entry.show || entry;
+          const imdbId = item.ids?.imdb;
+          if (!imdbId) return;
+
+          const type = (discoverMedia === 'watchlist') ? (entry.type === 'show' ? 'tv' : 'movie') : (discoverMedia === 'shows' ? 'tv' : 'movie');
+          const posterUrl = await resolvePoster(imdbId, type);
+          const img = document.getElementById(`poster-${imdbId}-${idx}`);
+
+          if (img && posterUrl) {
+            img.src = posterUrl;
+          } else if (img) {
+            img.src = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 300'%3E%3Crect fill='%231e1b4b' width='200' height='300'/%3E%3Ctext fill='%23818cf8' font-size='14' font-weight='bold' font-family='sans-serif' x='50%25' y='50%25' text-anchor='middle'%3E${encodeURIComponent(item.title)}%3C/text%3E%3C/svg%3E`;
+          }
+        });
+
       } catch (err) {
-        grid.innerHTML = `<div class="col-span-full py-8 text-center text-xs text-red-400">Error loading discovery list. Check your Trakt Client ID.</div>`;
+        grid.innerHTML = `<div class="col-span-full py-8 text-center text-xs text-red-400">Error loading discovery list. Check your Trakt connection.</div>`;
       }
     }
 
@@ -520,6 +995,7 @@
       } else {
         resumeFromItem(imdbId, 1, 1, type, 0);
       }
+      showToast(`Loaded ${title}`, 'info', 2500);
     }
 
     // --- PLAYER & CORE ACTIONS ---
@@ -542,6 +1018,8 @@
 
     function autoLoadIfActive() {
       if (isPlaying) {
+        // Sync previous episode before changing
+        sendTraktScrobble('pause');
         currentProgressSeconds = 0;
         loadPlayer(0);
       }
@@ -558,6 +1036,7 @@
         if (!epsRes.ok) return;
         const eps = await epsRes.json();
 
+        episodesManifest = eps.map(e => ({ season: e.season, number: e.number }));
         const metaSpan = document.getElementById('show-metadata');
         metaSpan.innerText = `${show.name} (${eps.length} eps)`;
         metaSpan.classList.remove('hidden');
@@ -576,7 +1055,7 @@
       const placeholder = document.getElementById('placeholder');
 
       if (!id) {
-        alert('Please enter an IMDb ID (e.g., tt0944947)');
+        showToast('Please enter an IMDb ID (e.g. tt0944947)', 'warning');
         return;
       }
 
@@ -606,17 +1085,21 @@
       isPlaying = true;
 
       recordCurrentWatch(id, season, episode, currentType, currentProgressSeconds, currentTitle);
+
+      // Trakt Scrobble Start Event
+      sendTraktScrobble('start');
     }
 
-    // --- ACCURATE TRAKT WATCHED HANDLER ---
-    async function markAsWatchedTrakt() {
+    async function markAsWatchedTrakt(showToastNotice = true) {
       const id = document.getElementById('input-id').value.trim();
       const season = parseInt(document.getElementById('input-season').value, 10);
       const episode = parseInt(document.getElementById('input-episode').value, 10);
 
-      if (!id) return alert('Enter an IMDb ID first.');
+      if (!id) {
+        showToast('Enter an IMDb ID first.', 'warning');
+        return;
+      }
 
-      // 1. Authenticated Trakt Sync (via PKCE Token)
       if (config.traktToken && config.traktClientId) {
         const payload = currentType === 'tv' 
           ? { shows: [{ ids: { imdb: id }, seasons: [{ number: season, episodes: [{ number: episode }] }] }] }
@@ -633,48 +1116,54 @@
             },
             body: JSON.stringify(payload)
           });
-          if (res.ok) {
-            alert('Marked as watched on Trakt!');
+          if (res.ok && showToastNotice) {
+            showToast('Marked as watched on Trakt!', 'success');
             return;
           }
         } catch (err) {
-          console.error('Trakt API sync failed, falling back to web navigation:', err);
+          console.error('Trakt API sync failed:', err);
         }
       }
 
-      // 2. Fallback Web Navigation (No 404s)
-      if (currentType === 'tv') {
-        if (config.traktClientId) {
-          try {
-            const lookup = await fetch(`https://api.trakt.tv/search/imdb/${id}?type=show`, {
-              headers: {
-                'Content-Type': 'application/json',
-                'trakt-api-version': '2',
-                'trakt-api-key': config.traktClientId
+      if (showToastNotice) {
+        showToast('Opening item on Trakt...', 'info', 2000);
+        if (currentType === 'tv') {
+          if (config.traktClientId) {
+            try {
+              const lookup = await fetch(`https://api.trakt.tv/search/imdb/${id}?type=show`, {
+                headers: {
+                  'Content-Type': 'application/json',
+                  'trakt-api-version': '2',
+                  'trakt-api-key': config.traktClientId
+                }
+              });
+              const data = await lookup.json();
+              if (data.length > 0 && data[0].show?.ids?.slug) {
+                const slug = data[0].show.ids.slug;
+                window.open(`https://trakt.tv/shows/${slug}/seasons/${season}/episodes/${episode}`, '_blank');
+                return;
               }
-            });
-            const data = await lookup.json();
-            if (data.length > 0 && data[0].show?.ids?.slug) {
-              const slug = data[0].show.ids.slug;
-              window.open(`https://trakt.tv/shows/${slug}/seasons/${season}/episodes/${episode}`, '_blank');
-              return;
-            }
-          } catch {}
+            } catch {}
+          }
+          window.open(`https://trakt.tv/search/imdb/${id}`, '_blank');
+        } else {
+          window.open(`https://trakt.tv/search/imdb/${id}`, '_blank');
         }
-        window.open(`https://trakt.tv/search/imdb/${id}`, '_blank');
-      } else {
-        window.open(`https://trakt.tv/search/imdb/${id}`, '_blank');
       }
     }
 
     function saveSettings() {
       config.provider = document.getElementById('setting-provider').value.replace(/\/$/, '');
       config.traktClientId = document.getElementById('setting-trakt-id').value.trim();
+      config.tmdbKey = document.getElementById('setting-tmdb-key').value.trim();
 
       localStorage.setItem('provider_url', config.provider);
       localStorage.setItem('trakt_client_id', config.traktClientId);
+      localStorage.setItem('tmdb_key', config.tmdbKey);
 
       toggleModal('settings-modal');
+      fetchDiscover();
+      showToast('Settings saved successfully.', 'success');
     }
 
     function toggleModal(id) {
@@ -682,12 +1171,7 @@
       modal.style.display = (modal.style.display === 'none' || modal.style.display === '') ? 'flex' : 'none';
     }
 
-    window.addEventListener('DOMContentLoaded', async () => {
-      // Check for PKCE redirect callback
-      if (window.location.search.includes('code=')) {
-        await handlePKCECallback();
-      }
-
+    window.addEventListener('DOMContentLoaded', () => {
       const history = getHistory();
       if (history.length > 0) {
         const last = history[0];
