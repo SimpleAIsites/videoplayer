@@ -12,13 +12,11 @@
   <!-- Header with Navigation Tabs -->
   <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur px-4 md:px-8 py-3 flex flex-wrap justify-between items-center gap-4 sticky top-0 z-30">
     <div class="flex items-center gap-6">
-      <!-- Brand / Logo (Takes to Player) -->
       <button onclick="switchTab('player')" class="flex items-center gap-2 group cursor-pointer focus:outline-none">
         <i class="fa-solid fa-play-circle text-indigo-500 text-2xl group-hover:text-indigo-400 transition"></i>
         <h1 class="text-lg font-bold tracking-tight">StreamDeck</h1>
       </button>
 
-      <!-- Navigation Tabs -->
       <nav class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
         <button id="nav-player" onclick="switchTab('player')" class="px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium transition cursor-pointer">
           <i class="fa-solid fa-film mr-1.5"></i> Player
@@ -35,8 +33,9 @@
     <!-- Metadata & Settings -->
     <div class="flex items-center gap-3">
       <span id="show-metadata" class="text-xs text-slate-400 font-mono hidden md:inline"></span>
-      <button type="button" onclick="toggleModal('settings-modal')" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 transition cursor-pointer">
-        <i class="fa-solid fa-gear mr-1"></i> Settings
+      <button type="button" onclick="toggleModal('settings-modal')" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 transition cursor-pointer flex items-center gap-1.5">
+        <i class="fa-solid fa-gear"></i> Settings
+        <span id="trakt-status-dot" class="w-2 h-2 rounded-full bg-slate-600"></span>
       </button>
     </div>
   </header>
@@ -46,21 +45,16 @@
 
     <!-- ================= TAB 1: PLAYER ================= -->
     <section id="tab-content-player" class="flex flex-col gap-4">
-      <!-- Command Bar -->
       <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-lg">
-        
         <div class="flex flex-wrap items-center gap-2.5">
-          <!-- Mode Switcher -->
           <div class="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800">
             <button id="type-tv" type="button" onclick="setType('tv')" class="px-3 py-1 text-xs font-semibold rounded-md bg-indigo-600 text-white transition cursor-pointer">TV</button>
             <button id="type-movie" type="button" onclick="setType('movie')" class="px-3 py-1 text-xs font-semibold rounded-md text-slate-400 hover:text-white transition cursor-pointer">Movie</button>
           </div>
 
-          <!-- IMDb Input -->
           <input id="input-id" type="text" placeholder="IMDb ID (e.g. tt0944947)" 
                  class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs w-36 md:w-44 focus:outline-none focus:border-indigo-500">
 
-          <!-- TV S/E Inputs -->
           <div id="tv-controls" class="flex items-center gap-1.5">
             <div class="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1">
               <span class="text-[11px] text-slate-400 font-bold">S</span>
@@ -76,19 +70,16 @@
             </div>
           </div>
 
-          <!-- Play Button -->
           <button type="button" onclick="loadPlayer()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-3.5 py-1 rounded-lg text-xs transition cursor-pointer shadow-sm">
             <i class="fa-solid fa-play mr-1"></i> Play
           </button>
         </div>
 
-        <!-- Trakt Watched Button -->
         <button type="button" onclick="markAsWatchedTrakt()" class="flex items-center gap-1.5 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30 px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer">
           <i class="fa-solid fa-check"></i> <span>Watched</span>
         </button>
       </div>
 
-      <!-- Video Embed Frame -->
       <div class="relative w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
         <iframe id="video-frame" src="" class="w-full h-full border-0" allowfullscreen></iframe>
         <div id="placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 text-slate-400">
@@ -104,10 +95,9 @@
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
           <div>
             <h2 class="text-base font-bold text-slate-200">Discover Titles</h2>
-            <p class="text-xs text-slate-400">Explore trending and popular movies and shows powered by Trakt</p>
+            <p class="text-xs text-slate-400">Trending and popular movies and shows powered by Trakt</p>
           </div>
 
-          <!-- Filters -->
           <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
             <button onclick="fetchDiscover('shows', 'trending')" id="tab-shows-trending" class="px-2.5 py-1 rounded-md bg-indigo-600 text-white font-medium">Trending Shows</button>
             <button onclick="fetchDiscover('movies', 'trending')" id="tab-movies-trending" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">Trending Movies</button>
@@ -116,7 +106,6 @@
           </div>
         </div>
 
-        <!-- Grid -->
         <div id="discover-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5 pt-1"></div>
       </div>
     </section>
@@ -129,15 +118,13 @@
           <p class="text-xs text-slate-400">Your last 5 sessions with automatically saved progress timestamps</p>
         </div>
 
-        <div id="history-full-list" class="space-y-2.5">
-          <!-- Rendered dynamically -->
-        </div>
+        <div id="history-full-list" class="space-y-2.5"></div>
       </div>
     </section>
 
   </main>
 
-  <!-- Settings Modal -->
+  <!-- Settings Modal with Trakt PKCE Login -->
   <div id="settings-modal" style="display: none;" class="fixed inset-0 bg-black/60 backdrop-blur-sm items-center justify-center p-4 z-50">
     <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
       <h3 class="text-base font-bold">Player & Trakt Settings</h3>
@@ -147,17 +134,27 @@
         <input id="setting-provider" type="text" value="https://vidsrc.to/embed" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200">
       </div>
 
-      <div class="border-t border-slate-800 pt-3">
-        <label class="block text-xs text-slate-400 mb-1">Trakt Client ID (Enables Trakt Discovery)</label>
-        <input id="setting-trakt-id" type="text" placeholder="Your Trakt App Client ID" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200">
+      <div class="border-t border-slate-800 pt-3 space-y-3">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-semibold text-slate-300">Trakt Integration (PKCE)</label>
+          <span id="trakt-auth-badge" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400">Not Connected</span>
+        </div>
+
+        <div>
+          <label class="block text-[11px] text-slate-400 mb-0.5">Trakt Client ID</label>
+          <input id="setting-trakt-id" type="text" placeholder="Your Trakt App Client ID" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200">
+          <p class="text-[10px] text-slate-500 mt-1">Make sure Redirect URI in your Trakt App matches your current URL.</p>
+        </div>
+
+        <!-- 1-Click PKCE Login Button -->
+        <div id="trakt-login-area">
+          <button id="btn-pkce-login" type="button" onclick="startTraktPKCE()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 rounded-lg text-xs transition cursor-pointer flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-arrow-right-to-bracket"></i> Login with Trakt (PKCE)
+          </button>
+        </div>
       </div>
 
-      <div>
-        <label class="block text-xs text-slate-400 mb-1">Trakt Access Token (Optional 1-click sync)</label>
-        <input id="setting-trakt-token" type="password" placeholder="OAuth Access Token" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200">
-      </div>
-
-      <div class="flex justify-end gap-2 pt-2">
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
         <button type="button" onclick="toggleModal('settings-modal')" class="px-3 py-1.5 text-xs bg-slate-800 rounded-lg cursor-pointer">Close</button>
         <button type="button" onclick="saveSettings()" class="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg cursor-pointer">Save</button>
       </div>
@@ -180,7 +177,137 @@
 
     document.getElementById('setting-provider').value = config.provider;
     document.getElementById('setting-trakt-id').value = config.traktClientId;
-    document.getElementById('setting-trakt-token').value = config.traktToken;
+    updateAuthBadge();
+
+    // --- PKCE CRYPTOGRAPHIC HELPERS ---
+    function base64UrlEncode(arrayBuffer) {
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary)
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    }
+
+    function generateRandomString(length = 64) {
+      const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+      const randomValues = new Uint8Array(length);
+      window.crypto.getRandomValues(randomValues);
+      return Array.from(randomValues).map(val => charset[val % charset.length]).join('');
+    }
+
+    async function sha256(plain) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(plain);
+      return await window.crypto.subtle.digest('SHA-256', data);
+    }
+
+    // Redirect user to Trakt with code_challenge
+    async function startTraktPKCE() {
+      const clientId = document.getElementById('setting-trakt-id').value.trim();
+      if (!clientId) {
+        alert('Please enter your Trakt Client ID first.');
+        return;
+      }
+
+      // Save Client ID
+      config.traktClientId = clientId;
+      localStorage.setItem('trakt_client_id', clientId);
+
+      // Generate Verifier & Challenge
+      const verifier = generateRandomString(64);
+      sessionStorage.setItem('trakt_pkce_verifier', verifier);
+
+      const hashed = await sha256(verifier);
+      const challenge = base64UrlEncode(hashed);
+
+      // Strict redirect URI matching current origin + path
+      const redirectUri = window.location.origin + window.location.pathname;
+
+      const authUrl = new URL('https://trakt.tv/oauth/authorize');
+      authUrl.searchParams.set('response_type', 'code');
+      authUrl.searchParams.set('client_id', clientId);
+      authUrl.searchParams.set('redirect_uri', redirectUri);
+      authUrl.searchParams.set('code_challenge', challenge);
+      authUrl.searchParams.set('code_challenge_method', 'S256');
+
+      window.location.href = authUrl.toString();
+    }
+
+    // Exchange auth code + code_verifier for access_token (NO SECRET NEEDED)
+    async function handlePKCECallback() {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+      if (!code) return;
+
+      const verifier = sessionStorage.getItem('trakt_pkce_verifier');
+      if (!verifier) return;
+
+      const redirectUri = window.location.origin + window.location.pathname;
+
+      try {
+        const res = await fetch('https://api.trakt.tv/oauth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: code,
+            client_id: config.traktClientId,
+            redirect_uri: redirectUri,
+            grant_type: 'authorization_code',
+            code_verifier: verifier
+          })
+        });
+
+        if (!res.ok) throw new Error('Token exchange failed.');
+        const tokenData = await res.json();
+
+        config.traktToken = tokenData.access_token;
+        localStorage.setItem('trakt_token', tokenData.access_token);
+        sessionStorage.removeItem('trakt_pkce_verifier');
+
+        // Clean up URL query parameters without reloading
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+        updateAuthBadge();
+        alert('Successfully connected to Trakt with PKCE!');
+      } catch (err) {
+        console.error('PKCE Exchange Error:', err);
+        sessionStorage.removeItem('trakt_pkce_verifier');
+      }
+    }
+
+    function updateAuthBadge() {
+      const badge = document.getElementById('trakt-auth-badge');
+      const dot = document.getElementById('trakt-status-dot');
+      const loginArea = document.getElementById('trakt-login-area');
+
+      if (config.traktToken) {
+        badge.innerText = 'Connected';
+        badge.className = 'text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800/40';
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+        loginArea.innerHTML = `
+          <button type="button" onclick="disconnectTrakt()" class="w-full bg-slate-800 hover:bg-rose-950/60 hover:text-rose-300 text-slate-300 font-medium py-1.5 rounded-lg text-xs transition cursor-pointer border border-slate-700">
+            Disconnect Trakt
+          </button>`;
+      } else {
+        badge.innerText = 'Not Connected';
+        badge.className = 'text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400';
+        dot.className = 'w-2 h-2 rounded-full bg-slate-600';
+        loginArea.innerHTML = `
+          <button id="btn-pkce-login" type="button" onclick="startTraktPKCE()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 rounded-lg text-xs transition cursor-pointer flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-arrow-right-to-bracket"></i> Login with Trakt (PKCE)
+          </button>`;
+      }
+    }
+
+    function disconnectTrakt() {
+      config.traktToken = '';
+      localStorage.removeItem('trakt_token');
+      updateAuthBadge();
+    }
 
     // --- TAB SWITCHER LOGIC ---
     function switchTab(tabId) {
@@ -203,14 +330,13 @@
       if (tabId === 'discover') fetchDiscover('shows', 'trending');
     }
 
-    // Input Enter trigger
     ['input-id', 'input-season', 'input-episode'].forEach(id => {
       document.getElementById(id).addEventListener('keydown', (e) => {
         if (e.key === 'Enter') loadPlayer();
       });
     });
 
-    // --- HISTORY STORAGE ENGINE (5 ITEMS) ---
+    // --- HISTORY ENGINE (5 ITEMS) ---
     function getHistory() {
       try {
         return JSON.parse(localStorage.getItem('streamdeck_history') || '[]');
@@ -263,7 +389,7 @@
       const list = getHistory();
 
       if (list.length === 0) {
-        container.innerHTML = `<div class="text-xs text-slate-500 text-center py-12">No watch history found. Start watching something from Discover or the Player!</div>`;
+        container.innerHTML = `<div class="text-xs text-slate-500 text-center py-12">No watch history found.</div>`;
         return;
       }
 
@@ -305,7 +431,6 @@
       loadPlayer(currentProgressSeconds);
     }
 
-    // Embed postMessage listener for time updates
     window.addEventListener('message', (event) => {
       try {
         const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
@@ -333,8 +458,8 @@
       if (!config.traktClientId) {
         grid.innerHTML = `
           <div class="col-span-full py-12 text-center bg-slate-950/60 rounded-xl border border-slate-800">
-            <p class="text-sm text-slate-300 font-medium mb-1">Trakt Client ID is required for live discovery.</p>
-            <p class="text-xs text-slate-500 mb-3">Add your free Trakt API Client ID in settings to populate live rankings.</p>
+            <p class="text-sm text-slate-300 font-medium mb-1">Trakt Client ID required.</p>
+            <p class="text-xs text-slate-500 mb-3">Add your Trakt app Client ID in settings to load trending and popular titles.</p>
             <button onclick="toggleModal('settings-modal')" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 rounded-lg transition cursor-pointer">Open Settings</button>
           </div>`;
         return;
@@ -385,23 +510,19 @@
       }
     }
 
-    // Handles picking a show from Discover and restoring existing state (e.g. S2E1)
     function selectDiscoverItem(imdbId, type, title) {
       currentTitle = title;
       const historyList = getHistory();
-      
-      // Look for pre-existing progress for this show/movie
       const existing = historyList.find(item => item.id === imdbId && item.type === type);
 
       if (existing) {
         resumeFromItem(imdbId, existing.season, existing.episode, type, existing.time || 0);
       } else {
-        // Brand new watch: start at S1E1 or Movie start
         resumeFromItem(imdbId, 1, 1, type, 0);
       }
     }
 
-    // --- PLAYER & SETTINGS ---
+    // --- PLAYER & CORE ACTIONS ---
     function setType(type) {
       currentType = type;
       const tvBtn = document.getElementById('type-tv');
@@ -487,13 +608,15 @@
       recordCurrentWatch(id, season, episode, currentType, currentProgressSeconds, currentTitle);
     }
 
+    // --- ACCURATE TRAKT WATCHED HANDLER ---
     async function markAsWatchedTrakt() {
       const id = document.getElementById('input-id').value.trim();
       const season = parseInt(document.getElementById('input-season').value, 10);
       const episode = parseInt(document.getElementById('input-episode').value, 10);
 
-      if (!id) return;
+      if (!id) return alert('Enter an IMDb ID first.');
 
+      // 1. Authenticated Trakt Sync (via PKCE Token)
       if (config.traktToken && config.traktClientId) {
         const payload = currentType === 'tv' 
           ? { shows: [{ ids: { imdb: id }, seasons: [{ number: season, episodes: [{ number: episode }] }] }] }
@@ -515,24 +638,41 @@
             return;
           }
         } catch (err) {
-          console.error('Trakt API sync failed:', err);
+          console.error('Trakt API sync failed, falling back to web navigation:', err);
         }
       }
 
-      const target = currentType === 'tv' 
-        ? `https://trakt.tv/search/imdb?query=${id}` 
-        : `https://trakt.tv/movies/${id}`;
-      window.open(target, '_blank');
+      // 2. Fallback Web Navigation (No 404s)
+      if (currentType === 'tv') {
+        if (config.traktClientId) {
+          try {
+            const lookup = await fetch(`https://api.trakt.tv/search/imdb/${id}?type=show`, {
+              headers: {
+                'Content-Type': 'application/json',
+                'trakt-api-version': '2',
+                'trakt-api-key': config.traktClientId
+              }
+            });
+            const data = await lookup.json();
+            if (data.length > 0 && data[0].show?.ids?.slug) {
+              const slug = data[0].show.ids.slug;
+              window.open(`https://trakt.tv/shows/${slug}/seasons/${season}/episodes/${episode}`, '_blank');
+              return;
+            }
+          } catch {}
+        }
+        window.open(`https://trakt.tv/search/imdb/${id}`, '_blank');
+      } else {
+        window.open(`https://trakt.tv/search/imdb/${id}`, '_blank');
+      }
     }
 
     function saveSettings() {
       config.provider = document.getElementById('setting-provider').value.replace(/\/$/, '');
       config.traktClientId = document.getElementById('setting-trakt-id').value.trim();
-      config.traktToken = document.getElementById('setting-trakt-token').value.trim();
 
       localStorage.setItem('provider_url', config.provider);
       localStorage.setItem('trakt_client_id', config.traktClientId);
-      localStorage.setItem('trakt_token', config.traktToken);
 
       toggleModal('settings-modal');
     }
@@ -542,8 +682,12 @@
       modal.style.display = (modal.style.display === 'none' || modal.style.display === '') ? 'flex' : 'none';
     }
 
-    // Auto-restore initial playback on startup if present
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
+      // Check for PKCE redirect callback
+      if (window.location.search.includes('code=')) {
+        await handlePKCECallback();
+      }
+
       const history = getHistory();
       if (history.length > 0) {
         const last = history[0];
